@@ -22,7 +22,26 @@ type ExampleReply struct {
 	Y int
 }
 
+
+
+
 // Add your RPC definitions here.
+type FinArgs struct{
+	Id int
+}
+
+type FinReply struct{
+
+}
+
+type TaskRequest struct{
+
+}
+
+type TaskReply struct{
+	Response int
+	Task Task
+}
 
 
 // Cook up a unique-ish UNIX-domain socket name
