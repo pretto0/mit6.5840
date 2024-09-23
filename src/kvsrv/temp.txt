@@ -1,0 +1,92 @@
+这是一个
+
+
+package kvsrv
+
+import (
+	"log"
+	"sync"
+)
+
+const Debug = false
+
+func DPrintf(format string, a ...interface{}) (n int, err error) {
+	if Debug {
+		log.Printf(format, a...)
+	}
+	return
+}
+
+
+type KVServer struct {
+	mu sync.Mutex
+	Data map[string]string
+	StateMap sync.Map 
+ 
+	// Your definitions here.
+}
+
+
+func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
+	kv.mu.Lock()
+	defer kv.mu.Unlock()
+	reply.Value = kv.Data[args.Key]
+	// Your code here.
+}
+
+func (kv *KVServer) Put(args *PutAppendArgs, reply *PutAppendReply) {
+	// Your code here.
+	switch args.State{
+	case Modify:
+		val, ok := kv.StateMap.Load(args.Id)
+		if ok { 
+			//因为sync.Map的值类型是any，需要使用.(string)声明类型
+			reply.Value = val.(string)
+		} else {
+			// 若Data不存在对应的键值对，old会返回""
+			kv.mu.Lock()
+			old := kv.Data[args.Key]
+			kv.Data[args.Key] = args.Value
+			reply.Value = old
+			kv.mu.Unlock()
+
+			kv.StateMap.Store(args.Id,reply.Value)
+		}
+		
+	case Report:
+		kv.StateMap.Delete(args.Id)
+	}
+}
+
+func (kv *KVServer) Append(args *PutAppendArgs, reply *PutAppendReply) {
+	// Your code here.
+	switch args.State {
+	case Modify:
+		val, ok := kv.StateMap.Load(args.Id)
+		if ok { 
+			//因为sync.Map的值类型是any，需要使用.(string)声明类型
+			reply.Value = val.(string)
+		} else {
+			// 若Data不存在对应的键值对，old会返回""
+			kv.mu.Lock()
+			old := kv.Data[args.Key]
+			kv.Data[args.Key] = args.Value + old
+			reply.Value = old
+			kv.mu.Unlock()
+			kv.StateMap.Store(args.Id,reply.Value)
+		}
+		
+	case Report:
+		kv.StateMap.Delete(args.Id)
+	}
+}
+
+func StartKVServer() *KVServer {
+	kv := &KVServer{
+		Data: make(map[string]string),
+	}
+
+	// You may need initialization code here.
+
+	return kv
+}
