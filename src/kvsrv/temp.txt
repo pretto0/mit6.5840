@@ -1,4 +1,4 @@
-这是一个
+这是一个废案，server端的put和append方法会报错。
 
 
 package kvsrv
