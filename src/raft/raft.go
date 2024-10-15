@@ -96,7 +96,7 @@ type Raft struct {
 
 // 返回log中的最后一个LogEntry元素
 func (rf *Raft) getLastLog() LogEntry {
-	return rf.logs[len(rf.logs)-1]
+	return rf.logs[len(rf.logs)-1 ]
 }
 
 func (rf *Raft) getFirstLog() LogEntry {
@@ -166,13 +166,14 @@ func (rf *Raft) StartElection(){
 					if reply.VoteGranted{
 						grantedVotes += 1
 						if grantedVotes > len(rf.peers)/2{
-							DPrintf("{Node %v} receives over half of the votes", rf.me)
+							// DPrintf("{Node %v} receives over half of the votes", rf.me)
 							rf.ChangeState(Leader)
 							rf.BroadcastHeartbeat(true)
 						}
 					} else if reply.Term > rf.currentTerm {
 						rf.ChangeState(Follower)
-						rf.currentTerm, rf.votedFor = reply.Term,-1 
+						rf.currentTerm, rf.votedFor = reply.Term,-1
+						// rf.persist()
 					}
 				
 				}
@@ -296,8 +297,8 @@ func (rf *Raft) genRequestVoteArgs() *RequestVoteArgs {
 	args := &RequestVoteArgs{
 		Term:         rf.currentTerm,
 		CandidateId:  rf.me,
-		// LastLogIndex: rf.getLastLog().Index,
-		// LastLogTerm:  rf.getLastLog().Term,
+		LastLogIndex: rf.getLastLog().Index,
+		LastLogTerm:  rf.getLastLog().Term,
 	}
 	return args
 }
@@ -322,8 +323,8 @@ func (rf *Raft) genAppendEntriesArgs(prevLogIndex int) *AppendEntriesArgs {
 type RequestVoteArgs struct {
 	Term int
 	CandidateId int
-	// LastLogIndex int
-	// LastLogTerm int
+	LastLogIndex int
+	LastLogTerm int
 	// Your data here (3A, 3B).
 }
 
@@ -362,6 +363,7 @@ type AppendEntriesReply struct {
 
 func (rf *Raft) isLogUpToDate(index, term int) bool {
 	lastLog := rf.getLastLog()
+	//当发送着的term大于接收者或者发送者同阶段但是日志更新在接收者前面时，返回true
 	return term > lastLog.Term || (term == lastLog.Term && index >= lastLog.Index)
 }
 
@@ -389,10 +391,10 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 		// rf.persist()
 	}
 
-	// if !rf.isLogUpToDate(args.LastLogIndex, args.LastLogTerm) {
-	// 	reply.Term, reply.VoteGranted = rf.currentTerm, false
-	// 	return
-	// }
+	if !rf.isLogUpToDate(args.LastLogIndex, args.LastLogTerm) {
+		reply.Term, reply.VoteGranted = rf.currentTerm, false
+		return
+	}
 
 	rf.votedFor = args.CandidateId
 	// rf.persist()
@@ -770,7 +772,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 		if peer != rf.me {
 			rf.replicatorCond[peer] = sync.NewCond(&sync.Mutex{})
 
-			fmt.Printf("Node %v start a go route for %v \n", rf.me, peer)
+			fmt.Printf("Node %v init a go route for %v \n", rf.me, peer)
 
 			// start replicator goroutine to send log entries to peer
 			// 开始一个协程，这个协程会定期向peer发送日志同步操作的请求
